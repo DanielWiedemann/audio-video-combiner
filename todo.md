@@ -27,7 +27,10 @@
 - [x] Real-time job status updates
 - [ ] Drag-and-drop file upload
 
+## Bugs
+- [x] Fix JSON parsing error - increased payload limit to 500MB
+
 ## Deployment
-- [ ] Create GitHub repository
-- [ ] Push code to GitHub
+- [x] Create GitHub repository
+- [x] Push code to GitHub
 
