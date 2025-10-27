@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, processingJobs } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -87,6 +87,73 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createProcessingJob(
+  userId: number,
+  audioUrl: string,
+  videoUrl: string
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.insert(processingJobs).values({
+    userId,
+    audioUrl,
+    videoUrl,
+    status: "pending",
+  });
+
+  // Fetch the created job
+  const jobs = await db
+    .select()
+    .from(processingJobs)
+    .where(eq(processingJobs.userId, userId))
+    .orderBy(desc(processingJobs.createdAt))
+    .limit(1);
+
+  return jobs[0];
+}
+
+export async function getProcessingJob(jobId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db
+    .select()
+    .from(processingJobs)
+    .where(eq(processingJobs.id, jobId))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateProcessingJob(
+  jobId: number,
+  updates: Partial<{
+    status: "pending" | "processing" | "completed" | "failed";
+    outputUrl: string;
+    errorMessage: string;
+  }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(processingJobs)
+    .set(updates as any)
+    .where(eq(processingJobs.id, jobId));
+}
+
+export async function getUserProcessingJobs(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return await db
+    .select()
+    .from(processingJobs)
+    .where(eq(processingJobs.userId, userId))
+    .orderBy(desc(processingJobs.createdAt));
 }
 
 // TODO: add feature queries here as your schema grows.

@@ -1,7 +1,14 @@
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import {
+  createProcessingJob,
+  getProcessingJob,
+  getUserProcessingJobs,
+} from "./db";
 
 export const appRouter = router({
   system: systemRouter,
@@ -17,12 +24,36 @@ export const appRouter = router({
     }),
   }),
 
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  video: router({
+    upload: protectedProcedure
+      .input(
+        z.object({
+          audioUrl: z.string(),
+          videoUrl: z.string(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const job = await createProcessingJob(
+          ctx.user.id,
+          input.audioUrl,
+          input.videoUrl
+        );
+        return { jobId: job.id };
+      }),
+    getJob: protectedProcedure
+      .input(z.object({ jobId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const job = await getProcessingJob(input.jobId);
+        if (!job || job.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return job;
+      }),
+    listJobs: protectedProcedure.query(async ({ ctx }) => {
+      return await getUserProcessingJobs(ctx.user.id);
+    }),
+  }),
+
 });
 
 export type AppRouter = typeof appRouter;

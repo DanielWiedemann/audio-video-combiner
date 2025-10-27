@@ -25,4 +25,17 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+export const processingJobs = mysqlTable("processing_jobs", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  audioUrl: text("audioUrl").notNull(),
+  videoUrl: text("videoUrl").notNull(),
+  outputUrl: text("outputUrl"),
+  status: mysqlEnum("status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),
+  errorMessage: text("errorMessage"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ProcessingJob = typeof processingJobs.$inferSelect;
+export type InsertProcessingJob = typeof processingJobs.$inferInsert;
