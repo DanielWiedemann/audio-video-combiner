@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
 import { Upload, Download, Play, Music } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 
 export default function Home() {
@@ -18,6 +18,7 @@ export default function Home() {
   const uploadMutation = trpc.video.upload.useMutation();
   const jobsQuery = trpc.video.listJobs.useQuery(undefined, {
     enabled: isAuthenticated,
+    refetchInterval: 2000,
   });
 
   const handleAudioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,6 +33,15 @@ export default function Home() {
     }
   };
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleProcess = async () => {
     if (!audioFile || !videoFile) {
       alert("Please select both audio and video files");
@@ -41,14 +51,12 @@ export default function Home() {
     setIsProcessing(true);
 
     try {
-      // In a real implementation, you would upload files to S3 first
-      // For now, we'll use placeholder URLs
-      const audioUrl = URL.createObjectURL(audioFile);
-      const videoUrl = URL.createObjectURL(videoFile);
+      const audioBase64 = await fileToBase64(audioFile);
+      const videoBase64 = await fileToBase64(videoFile);
 
       await uploadMutation.mutateAsync({
-        audioUrl,
-        videoUrl,
+        audioUrl: audioBase64,
+        videoUrl: videoBase64,
       });
 
       setAudioFile(null);
@@ -56,13 +64,22 @@ export default function Home() {
       if (audioInputRef.current) audioInputRef.current.value = "";
       if (videoInputRef.current) videoInputRef.current.value = "";
 
-      jobsQuery.refetch();
+      await jobsQuery.refetch();
     } catch (error) {
       alert("Error processing video: " + (error as Error).message);
     } finally {
       setIsProcessing(false);
     }
   };
+
+  useEffect(() => {
+    if (jobsQuery.data?.some(j => j.status === "processing" || j.status === "pending")) {
+      const interval = setInterval(() => {
+        jobsQuery.refetch();
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [jobsQuery.data, jobsQuery]);
 
   if (!isAuthenticated) {
     return (
@@ -156,8 +173,8 @@ export default function Home() {
             </Button>
             {isProcessing && (
               <div className="mt-4">
-                <Progress value={33} className="w-full" />
-                <p className="text-sm text-gray-600 mt-2">Processing your video...</p>
+                <Progress value={50} className="w-full" />
+                <p className="text-sm text-gray-600 mt-2">Uploading and queuing your video...</p>
               </div>
             )}
           </CardContent>
@@ -174,27 +191,38 @@ export default function Home() {
                 {jobsQuery.data.map((job) => (
                   <div
                     key={job.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
+                    className="p-4 border rounded-lg"
                   >
-                    <div>
-                      <p className="font-medium">Job #{job.id}</p>
-                      <p className="text-sm text-gray-600">
-                        Status: <span className="capitalize font-semibold">{job.status}</span>
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(job.createdAt).toLocaleString()}
-                      </p>
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="font-medium">Job #{job.id}</p>
+                        <p className="text-sm text-gray-600">
+                          Status: <span className="capitalize font-semibold">{job.status}</span>
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(job.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                      {job.status === "completed" && job.outputUrl && (
+                        <a href={job.outputUrl} target="_blank" rel="noopener noreferrer">
+                          <Button variant="outline" size="sm">
+                            <Download className="w-4 h-4 mr-2" />
+                            Download
+                          </Button>
+                        </a>
+                      )}
+                      {job.status === "failed" && (
+                        <p className="text-sm text-red-600">{job.errorMessage}</p>
+                      )}
                     </div>
-                    {job.status === "completed" && job.outputUrl && (
-                      <a href={job.outputUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Download className="w-4 h-4 mr-2" />
-                          Download
-                        </Button>
-                      </a>
-                    )}
-                    {job.status === "failed" && (
-                      <p className="text-sm text-red-600">{job.errorMessage}</p>
+                    {(job.status === "processing" || job.status === "pending") && (
+                      <div className="mt-3">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span>Progress</span>
+                          <span>{job.progress}%</span>
+                        </div>
+                        <Progress value={job.progress} className="w-full" />
+                      </div>
                     )}
                   </div>
                 ))}

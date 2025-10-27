@@ -15,6 +15,13 @@
       "when": 1761589582912,
       "tag": "0001_majestic_tyrannus",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1761590832392,
+      "tag": "0002_chilly_silver_samurai",
+      "breakpoints": true
     }
   ]
 }

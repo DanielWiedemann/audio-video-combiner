@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, processingJobs } from "../drizzle/schema";
+import { InsertUser, users, processingJobs, processingQueue } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -134,6 +134,7 @@ export async function updateProcessingJob(
     status: "pending" | "processing" | "completed" | "failed";
     outputUrl: string;
     errorMessage: string;
+    progress: number;
   }>
 ) {
   const db = await getDb();

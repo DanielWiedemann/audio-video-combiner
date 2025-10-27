@@ -32,6 +32,7 @@ export const processingJobs = mysqlTable("processing_jobs", {
   videoUrl: text("videoUrl").notNull(),
   outputUrl: text("outputUrl"),
   status: mysqlEnum("status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),
+  progress: int("progress").default(0).notNull(),
   errorMessage: text("errorMessage"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -39,3 +40,14 @@ export const processingJobs = mysqlTable("processing_jobs", {
 
 export type ProcessingJob = typeof processingJobs.$inferSelect;
 export type InsertProcessingJob = typeof processingJobs.$inferInsert;
+
+export const processingQueue = mysqlTable("processing_queue", {
+  id: int("id").autoincrement().primaryKey(),
+  jobId: int("jobId").notNull(),
+  status: mysqlEnum("status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ProcessingQueueItem = typeof processingQueue.$inferSelect;
+export type InsertProcessingQueueItem = typeof processingQueue.$inferInsert;
