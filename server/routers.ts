@@ -33,12 +33,23 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ ctx, input }) => {
-        const job = await createProcessingJob(
-          ctx.user.id,
-          input.audioUrl,
-          input.videoUrl
-        );
-        return { jobId: job.id };
+        try {
+          console.log(`[Upload] Creating job for user ${ctx.user.id}`);
+          console.log(`[Upload] Audio URL length: ${input.audioUrl.length}`);
+          console.log(`[Upload] Video URL length: ${input.videoUrl.length}`);
+          
+          const job = await createProcessingJob(
+            ctx.user.id,
+            input.audioUrl,
+            input.videoUrl
+          );
+          
+          console.log(`[Upload] Job created with ID: ${job.id}`);
+          return { jobId: job.id };
+        } catch (error) {
+          console.error(`[Upload] Error:`, error);
+          throw error;
+        }
       }),
     getJob: protectedProcedure
       .input(z.object({ jobId: z.number() }))

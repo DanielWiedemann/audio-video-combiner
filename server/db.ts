@@ -97,22 +97,31 @@ export async function createProcessingJob(
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.insert(processingJobs).values({
-    userId,
-    audioUrl,
-    videoUrl,
-    status: "pending",
-  });
+  try {
+    console.log(`[DB] Creating job for user ${userId}`);
+    console.log(`[DB] Audio URL length: ${audioUrl.length}`);
+    console.log(`[DB] Video URL length: ${videoUrl.length}`);
+    
+    await db.insert(processingJobs).values({
+      userId,
+      audioUrl,
+      videoUrl,
+      status: "pending",
+    });
 
-  // Fetch the created job
-  const jobs = await db
-    .select()
-    .from(processingJobs)
-    .where(eq(processingJobs.userId, userId))
-    .orderBy(desc(processingJobs.createdAt))
-    .limit(1);
+    const jobs = await db
+      .select()
+      .from(processingJobs)
+      .where(eq(processingJobs.userId, userId))
+      .orderBy(desc(processingJobs.createdAt))
+      .limit(1);
 
-  return jobs[0];
+    console.log(`[DB] Job created with ID: ${jobs[0]?.id}`);
+    return jobs[0];
+  } catch (error) {
+    console.error(`[DB] Error creating job:`, error);
+    throw error;
+  }
 }
 
 export async function getProcessingJob(jobId: number) {

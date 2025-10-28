@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
-import { Upload, Download, Play, Music } from "lucide-react";
+import { Upload, Download, Play, Music, AlertCircle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 
@@ -12,6 +12,7 @@ export default function Home() {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -24,40 +25,61 @@ export default function Home() {
   const handleAudioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       setAudioFile(e.target.files[0]);
+      setError(null);
     }
   };
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       setVideoFile(e.target.files[0]);
+      setError(null);
     }
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result === "string") {
+          console.log(`[DEBUG] Converted ${file.name} to base64, length: ${result.length}`);
+          resolve(result);
+        } else {
+          reject(new Error("FileReader did not return a string"));
+        }
+      };
+      reader.onerror = () => {
+        reject(new Error(`Failed to read file: ${file.name}`));
+      };
       reader.readAsDataURL(file);
     });
   };
 
   const handleProcess = async () => {
     if (!audioFile || !videoFile) {
-      alert("Please select both audio and video files");
+      setError("Please select both audio and video files");
       return;
     }
 
     setIsProcessing(true);
+    setError(null);
 
     try {
+      console.log("[DEBUG] Starting file conversion...");
+      console.log(`[DEBUG] Audio file: ${audioFile.name}, size: ${audioFile.size} bytes`);
+      console.log(`[DEBUG] Video file: ${videoFile.name}, size: ${videoFile.size} bytes`);
+
       const audioBase64 = await fileToBase64(audioFile);
       const videoBase64 = await fileToBase64(videoFile);
 
-      await uploadMutation.mutateAsync({
+      console.log("[DEBUG] Files converted to base64, sending to server...");
+
+      const result = await uploadMutation.mutateAsync({
         audioUrl: audioBase64,
         videoUrl: videoBase64,
       });
+
+      console.log("[DEBUG] Upload successful, job ID:", result.jobId);
 
       setAudioFile(null);
       setVideoFile(null);
@@ -66,7 +88,9 @@ export default function Home() {
 
       await jobsQuery.refetch();
     } catch (error) {
-      alert("Error processing video: " + (error as Error).message);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error("[DEBUG] Error:", errorMsg);
+      setError("Error processing video: " + errorMsg);
     } finally {
       setIsProcessing(false);
     }
@@ -110,6 +134,15 @@ export default function Home() {
           <p className="text-gray-600">Combine audio and video files with automatic looping</p>
         </div>
 
+        {error && (
+          <Card className="mb-8 border-red-200 bg-red-50">
+            <CardContent className="pt-6 flex gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700">{error}</p>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <Card>
             <CardHeader>
@@ -128,7 +161,7 @@ export default function Home() {
                 className="w-full"
               />
               {audioFile && (
-                <p className="text-sm text-green-600 mt-2">✓ {audioFile.name}</p>
+                <p className="text-sm text-green-600 mt-2">✓ {audioFile.name} ({(audioFile.size / 1024 / 1024).toFixed(2)} MB)</p>
               )}
             </CardContent>
           </Card>
@@ -150,7 +183,7 @@ export default function Home() {
                 className="w-full"
               />
               {videoFile && (
-                <p className="text-sm text-green-600 mt-2">✓ {videoFile.name}</p>
+                <p className="text-sm text-green-600 mt-2">✓ {videoFile.name} ({(videoFile.size / 1024 / 1024).toFixed(2)} MB)</p>
               )}
             </CardContent>
           </Card>

@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, longtext } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -28,8 +28,8 @@ export type InsertUser = typeof users.$inferInsert;
 export const processingJobs = mysqlTable("processing_jobs", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
-  audioUrl: text("audioUrl").notNull(),
-  videoUrl: text("videoUrl").notNull(),
+  audioUrl: longtext("audioUrl").notNull(),
+  videoUrl: longtext("videoUrl").notNull(),
   outputUrl: text("outputUrl"),
   status: mysqlEnum("status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),
   progress: int("progress").default(0).notNull(),

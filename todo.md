@@ -29,6 +29,7 @@
 
 ## Bugs
 - [x] Fix JSON parsing error - increased payload limit to 500MB
+- [x] Fix database column size - changed to longtext for base64 data
 
 ## Deployment
 - [x] Create GitHub repository
